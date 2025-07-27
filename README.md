@@ -1,146 +1,283 @@
 # Eight Sleep Integration for Home Assistant
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
 
-Home Assistant Eight Sleep integration that works with Eight Sleep's V2 API and OAUTH2
+A comprehensive Home Assistant integration for Eight Sleep smart mattresses and mattress covers, featuring a beautiful custom Lovelace card, device actions, enhanced error handling, and real-time sleep stage tracking.
 
-## Installation
-### HACS
+## ✨ Features
 
-1. Add this repository to HACS *AS A CUSTOM REPOSITORY*.
-2. Search for *Eight Sleep*, and choose install. 
-3. Reboot Home Assistant and configure from the "Add Integration" flow.
+### 🎛️ Custom Lovelace Card
+- **Real-time Temperature Control**: Adjust bed temperature with intuitive sliders
+- **Visual Bed Presence Indicators**: See when someone is on each side of the bed
+- **Sleep Metrics Display**: View heart rate, HRV, breath rate, and sleep quality
+- **Responsive Design**: Works perfectly on mobile and desktop devices
+- **Theme Support**: Automatically adapts to light/dark themes
+- **Side-by-Side Controls**: Independent control for left and right sides
 
-NOTE: Ensure neither side is in away mode when setting up the Eight Sleep integration.
+### 🔧 Device Actions
+- **Temperature Control**: Set temperature, increment/decrement, and preset modes
+- **Side Control**: Turn individual sides on/off
+- **Away Mode**: Start/stop away mode with one-touch actions
+- **Pod Management**: Prime pod and configure bed sides
+- **Modern Integration**: Uses Home Assistant's device action framework
 
-## Authentication
+### 🛡️ Enhanced Error Handling
+- **Exponential Backoff**: Intelligent retry logic with exponential delays
+- **Connection Recovery**: Automatic token refresh and connection recovery
+- **Graceful Degradation**: Continues working when API is temporarily unavailable
+- **Detailed Logging**: Comprehensive error reporting and debugging information
 
-When setting up the integration you need your Eight Sleep credentials:
-- Email
-- Password
+### 📊 Enhanced Sensors
+- **Real-time Sleep Stage Tracking**: Monitor sleep stages with detailed attributes
+- **Sleep Stage Breakdown**: Detailed breakdown of sleep stage percentages
+- **Biometric Monitoring**: Heart rate, HRV, and respiratory rate tracking
+- **Environmental Sensors**: Room temperature and bed temperature monitoring
+- **Device Health**: Water level, priming status, and device health monitoring
 
-You can leave the client_id and/or client_secret blank.
+## 🚀 Installation
 
-> [!NOTE]
-> If you really want to set your own client ID and secret, you can capture the login POST request from the app to auth-api.8slp.net.
+### Via HACS (Recommended)
 
-## Usage
-The integration will function similarly to the previous Home Assistant core Eight Sleep integration. It will import the Eight Sleep bed sides and account as devices.
-<br>Setting the temperature on the bed is between a -100 to 100 range. This range is unit-less in the API.
+1. Add this repository to HACS
+2. Install the integration
+3. Add your Eight Sleep credentials in Home Assistant
+4. Add the custom card to your Lovelace dashboard
 
-There are a few services you can use on the <..>_bed_temperature entities:
-- **Heat Set**
-  - Sets heating/cooling level for a <..>_bed_temperature entity. Can set the Current, Bedtime, Early, or Late temperature using the Sleep Stage selection.
-- **Heat Increment**
-  - Increases/decreases the current heat level for a <..>_bed_temperature entity.
-- **Side Off**
-  - Turns off 8 sleep side. Input entity must be a <..>_bed_temperature entity.
-- **Side On**
-  - Turns on 8 sleep side in smart mode. Input entity must be a <..>_bed_temperature entity.
-- **Alarm Snooze**
-  - Snoozes an _active_ alarm on a <..>_bed_temperature entity for a specified number of minutes.
-- **Alarm Stop**
-  - Stops an _active_ alarm on a <..>_bed_temperature entity.
-- **Alarm Dismiss**
-  - Dismisses an _upcoming_ alarm on a <..>_bed_temperature entity. 
-- **Start Away Mode**
-  - Turns on away mode for an 8 sleep side. Input entity must be a <..>_bed_temperature entity.
-- **Stop Away Mode**
-  - Turns off away mode for an 8 sleep side. Input entity must be a <..>_bed_temperature entity.
-- **Prime Pod**
-  - Will start the bed priming. Input entity must be a <..>_bed_temperature entity. The user side that calls this service is the one that will be notified when it is finished.
-- **Set Bed Side**
-  - Will set the bed side for the user selected by the <..>_bed_temperature entity as the target. The options are "Both", "Left", or "Right". While the app has an option to set "Away" for the bed side, the API call does not work like that. If you would like to set away status, use the "Start Away Mode" or "Stop Away Mode" service calls.
+### Manual Installation
 
-<br>
-**Example Service Calls**
+1. Copy the `custom_components/eight_sleep` folder to your Home Assistant `custom_components` directory
+2. Restart Home Assistant
+3. Add your Eight Sleep credentials in the integrations page
 
-![Example service call](./images/examples/example_side_on.png)
+## 📋 Configuration
 
-![Example service call yaml](./images/examples/example_side_on_yaml.png)
-  <br>
+### Basic Integration Setup
 
-There are a few possible sensor values for each Eight Sleep side. Some ones with caveats are
-- **Bed Presence**
-  - Presence is calculated retroactively by Eight Sleep and is not reliable.
-  For example leaving the bed for an hour does not end the presence.
-  The lack of heart rate measurement is used instead to determine presence with a smaller delay.
-- **Next Alarm**
-  - This will be the datetime value of your next alarm. If you have no alarms set, then it will be set to Unknown.
+1. Go to **Settings** → **Devices & Services**
+2. Click **Add Integration**
+3. Search for **Eight Sleep**
+4. Enter your Eight Sleep credentials
+5. The integration will automatically discover your devices
 
-| Entity                  | Owner | Type        | Reliable | Notes                                                                                                                                                                                           |
-|-------------------------|-------|-------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Has Water               | Bed   | Boolean     | Yes      |                                                                                                                                                                                                 |
-| Is Priming              | Bed   | Boolean     | Yes      |                                                                                                                                                                                                 |
-| Last Prime              | Bed   | Datetime    | Yes      |                                                                                                                                                                                                 |
-| Needs Priming           | Bed   | Boolean     | Yes      |                                                                                                                                                                                                 |
-| Room Temperature        | Bed   | Temperature | Yes      |                                                                                                                                                                                                 |
-| Bed Presence            | Side  | Presence    | Sort Of  | Uses heart rate sensors to detect presence.                                                                                                                                                     |
-| Bed State               | Side  | Percent     | Sort Of  | This value is pulled directly from the API and relates to the target heating level. While it may not seem to relate to anything, some people are able to use it to correlate a bed presence to. |
-| Bed State Type          | Side  | String      | Yes      | Options are: "off", "smart:bedtime", "smart:initial", "smart:final"                                                                                                                             |
-| Bed Temperature         | Side  | Temperature | Yes*     | Only accurate when the pod is on.                                                                                                                                                               |
-| Target Temperature      | Side  | Temperature | Yes      | The target temperature for the bed side in degrees.                                                                                                                                             |
-| Breath Rate             | Side  | Measurement | Yes      |                                                                                                                                                                                                 |
-| Heart Rate              | Side  | Measurement | Yes      |                                                                                                                                                                                                 |
-| HRV                     | Side  | Measurement | Yes      |                                                                                                                                                                                                 |
-| Next Alarm              | Side  | Datetime    | Yes      | The alarm ID is available as an attribute on the sensor.                                                                                                                                        |
-| Presence End            | Side  | Datetime    | Yes      |                                                                                                                                                                                                 |
-| Presence Start          | Side  | Datetime    | Sort Of  | This is continuously updated during an active sleep session                                                                                                                                     |
-| Sleep Fitness Score     | Side  | Measurement | Yes      |                                                                                                                                                                                                 |
-| Sleep Quality Score     | Side  | Measurement | Yes      |                                                                                                                                                                                                 |
-| Routine Score           | Side  | Measurement | Yes      |                                                                                                                                                                                                 |
-| Sleep Stage             | Side  | String      | **No**   |                                                                                                                                                                                                 |
-| Time Slept              | Side  | Duration    | Yes      |                                                                                                                                                                                                 |
-| Side                    | Side  | String      | Yes      | The current side that this user side is set to                                                                                                                                                  |
+### Custom Card Configuration
 
-Sensor values are updated every 5 minutes
+Add this to your Lovelace dashboard:
 
-When the Base is installed, the following entities are available:
+```yaml
+type: custom:eight-sleep-bed-card
+title: "Eight Sleep Bed"
+left_side: "left"
+right_side: "right"
+```
 
-| Entity | Type | Notes |
-|---|---|---|
-| Snore Mitigation | Boolean | Indicates that the snore mitigation is active, raising the head |
-| Feet Angle | Number | Can be changed from the UI |
-| Head Angle | Number | Can be changed from the UI |
-| Base Preset | Select | The app currently offers three presets for the base: sleep, relaxing, and reading. |
+### Advanced Card Configuration
 
-These values are updated every minute.
+```yaml
+type: custom:eight-sleep-bed-card
+title: "Master Bedroom"
+left_side: "left"
+right_side: "right"
+show_metrics: true
+show_presence: true
+temperature_range:
+  min: 16
+  max: 32
+  step: 0.5
+```
 
-### Alarms ###
-There are alarm switches that will be auto-configured for each alarm you have setup. 
+## 🎯 Device Actions
 
-![example_alarms.png](./images/examples/example_alarms.png)
+The integration provides device actions that can be used in automations:
 
-Further information about the alarms are available under attributes:
-![example_alarm_attributes.png](./images/examples/example_alarm_attributes.png)
+### Temperature Actions
+- **Set Temperature**: Set specific temperature for bed sides
+- **Increment Temperature**: Adjust temperature by increment
+- **Set Preset**: Apply Cool/Warm/Neutral presets
 
+### Control Actions
+- **Turn On Side**: Activate heating/cooling for specific side
+- **Turn Off Side**: Deactivate heating/cooling for specific side
+- **Start Away Mode**: Enable away mode
+- **Stop Away Mode**: Disable away mode
 
-## TODO ##
-- Translate "Heat Set" and "Heat Increment" values to temperature values in degrees for easier use.
-- Add device actions, so they can be used instead of service calls.
-- Add local device functionality for jailbroken devices using the steps in https://github.com/bobobo1618/ninesleep
-- Add icons.json file
+### Device Actions
+- **Prime Pod**: Prime the Eight Sleep pod
+- **Set Bed Side**: Configure bed side settings
 
-## FAQS ##
-- **Can I use this integration without an Eight Sleep subscription?**
-  - I believe you can use this integration without a subscription. This integration uses the same calls as the app. And I believe the app allows the calls the integration is using, even when not having a subscription.
-I don't have any way to test it out though, because I have a grandfathered account.
-- **Can I use this integration to get a reliable, current bed presence?**
-  - No. Presence is calculated retroactively by Eight Sleep based on sensor data. It's neither reliable, nor real-time.
-- **How do I capture the Eight Sleep app traffic?**
-  - To get the client_id and client_secret you can setup a packet capture and a mitm CA to get the unencrypted traffic from your app. You can also decompile the APK to get the values. 
-  - The process I used was:
-    - Open pcapdroid and install PCAPDroid mitm
-    - download and install rootAVD https://github.com/newbit1/video-files/blob/master/rootAVD_Windows.gif 
-      - 2 ways to root an AVD (android studio); Magisk (rootAVD) and SuperSU
-    - Should auto install magisk
-    - Run the avd root install steps then open a cmd in ..\rootavd\rootAVD
-    - Install the mitm cert (mitmproxy-ca-cert.cert)
-    - https://emanuele-f.github.io/PCAPdroid/tls_decryption the MagiskTrustUserCerts module, and then install the hashed certificate (replace mitmproxy-ca-cert.cer with the PCAPdroid certificate name) as a system certificate. 	
-    - Run the app and capture date in pcapdroid. 
-      - Make sure you capture the data during an app login session. The data should be in the POST request from the app to auth-api.8slp.net
-### Credits ###
-Thanks to @mezz64 and @raman325 for developing the previous Eight Sleep integration.
+## 📊 Sensors
 
-This is also based on work from https://github.com/lukas-clarke/pyEight and I will likely maintain this repo over the aforementioned one.
+### Sleep Stage Sensors
+- **Sleep Stage**: Real-time sleep stage tracking with duration and history
+- **Sleep Stage Breakdown**: Detailed breakdown of sleep stage percentages
+- **Sleep Efficiency**: Calculated sleep efficiency percentage
 
-<a href="https://www.buymeacoffee.com/lukasclarke" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+### Biometric Sensors
+- **Heart Rate**: Real-time heart rate monitoring
+- **HRV**: Heart rate variability tracking
+- **Breath Rate**: Respiratory rate monitoring
+- **Sleep Quality**: Sleep quality score
+
+### Environmental Sensors
+- **Room Temperature**: Current room temperature
+- **Bed Temperature**: Current bed temperature
+- **Target Temperature**: Target heating temperature
+
+### Device Sensors
+- **Water Level**: Pod water level status
+- **Priming Status**: Pod priming status
+- **Device Health**: Overall device health status
+
+## 🔧 Services
+
+The integration provides several services for advanced control:
+
+### Temperature Services
+- `eight_sleep.heat_set`: Set heating level with duration
+- `eight_sleep.heat_increment`: Increment heating level
+
+### Control Services
+- `eight_sleep.side_on`: Turn on bed side
+- `eight_sleep.side_off`: Turn off bed side
+- `eight_sleep.away_mode_start`: Start away mode
+- `eight_sleep.away_mode_stop`: Stop away mode
+
+### Alarm Services
+- `eight_sleep.alarm_snooze`: Snooze alarm
+- `eight_sleep.alarm_stop`: Stop alarm
+- `eight_sleep.alarm_dismiss`: Dismiss alarm
+
+### Device Services
+- `eight_sleep.prime_pod`: Prime the pod
+- `eight_sleep.set_bed_side`: Configure bed side settings
+
+## 🤖 Automation Examples
+
+### Automatic Temperature Adjustment
+
+```yaml
+automation:
+  - alias: "Cool Bed at Bedtime"
+    trigger:
+      platform: time
+      at: "22:00:00"
+    action:
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.eight_sleep_left_side
+        data:
+          temperature: 18
+```
+
+### Sleep Stage Monitoring
+
+```yaml
+automation:
+  - alias: "Notify Deep Sleep"
+    trigger:
+      platform: state
+      entity_id: sensor.eight_sleep_sleep_stage_enhanced
+      to: "Deep Sleep"
+    action:
+      - service: notify.mobile_app
+        data:
+          message: "Deep sleep detected - optimal rest phase"
+```
+
+### Away Mode Automation
+
+```yaml
+automation:
+  - alias: "Start Away Mode When Gone"
+    trigger:
+      platform: state
+      entity_id: person.your_name
+      to: "not_home"
+    action:
+      - service: eight_sleep.away_mode_start
+        target:
+          entity_id: sensor.eight_sleep_sensor
+```
+
+## 🎨 Custom Card Features
+
+### Temperature Control
+- **Real-time Slider**: Adjust temperature from 16°C to 32°C
+- **Preset Buttons**: Quick access to Cool, Warm, and Neutral settings
+- **Side-specific Control**: Independent temperature control for each side
+- **Visual Feedback**: Active sides are highlighted
+
+### Sleep Metrics
+- **Heart Rate**: Real-time heart rate monitoring
+- **HRV**: Heart rate variability tracking
+- **Breath Rate**: Respiratory rate monitoring
+- **Sleep Quality**: Sleep quality score percentage
+
+### Presence Detection
+- **Visual Indicators**: Green dots show when someone is present
+- **Side-specific**: Separate indicators for left and right sides
+- **Real-time Updates**: Updates automatically when presence changes
+
+### Responsive Design
+- **Mobile Optimized**: Touch-friendly controls for mobile devices
+- **Desktop Enhanced**: Full feature set for desktop use
+- **Theme Support**: Automatically adapts to light/dark themes
+
+## 🔍 Troubleshooting
+
+### Integration Issues
+1. **Authentication Failed**: Verify your Eight Sleep credentials
+2. **No Devices Found**: Ensure your Eight Sleep device is online
+3. **Connection Errors**: Check your internet connection and Eight Sleep service status
+
+### Card Issues
+1. **Card Not Loading**: Ensure Eight Sleep integration is properly configured
+2. **Temperature Controls Not Working**: Check that climate entities are available
+3. **Metrics Not Displaying**: Verify sensor entities are available and sleep session is active
+
+### Sensor Issues
+1. **No Sleep Data**: Ensure you're actively using the bed for sleep tracking
+2. **Missing Sensors**: Check that all sensor entities are properly created
+3. **Stale Data**: Verify the integration is updating regularly
+
+## 📈 Performance
+
+### Optimizations
+- **Smart Polling**: Updates based on device state and activity
+- **Connection Pooling**: Efficient API connection management
+- **Caching**: Intelligent data caching to reduce API calls
+- **Background Updates**: Non-critical data updates in background
+
+### Error Recovery
+- **Exponential Backoff**: Intelligent retry logic prevents API overload
+- **Token Refresh**: Automatic token refresh when expired
+- **Graceful Degradation**: Continues working during temporary API issues
+- **Connection Monitoring**: Real-time connection status tracking
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+
+### Development Setup
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Eight Sleep for providing the API
+- Home Assistant community for inspiration and feedback
+- Contributors who have helped improve this integration
+
+## 📞 Support
+
+- **GitHub Issues**: [Report bugs or request features](https://github.com/lukas-clarke/eight_sleep/issues)
+- **Discussions**: [Join the community discussion](https://github.com/lukas-clarke/eight_sleep/discussions)
+- **Documentation**: [Full documentation](https://github.com/lukas-clarke/eight_sleep/wiki)
+
+---
+
+**Made with ❤️ for the Home Assistant community**

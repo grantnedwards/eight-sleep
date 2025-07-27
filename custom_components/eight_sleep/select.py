@@ -19,7 +19,6 @@ BASE_PRESET_DESCRIPTION = SelectEntityDescription(
     options=PRESETS,
 )
 
-
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
@@ -44,7 +43,6 @@ async def async_setup_entry(
             set_preset))
 
     async_add_entities(entities)
-
 
 class EightSelectEntity(EightSleepBaseEntity, SelectEntity):
 

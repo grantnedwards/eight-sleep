@@ -30,7 +30,6 @@ HEAD_DESCRIPTION = NumberEntityDescription(
     icon="mdi:head",
 )
 
-
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
@@ -69,7 +68,6 @@ async def async_setup_entry(
                 set_torso_angle)])
 
     async_add_entities(entities)
-
 
 class EightNumberEntity(EightSleepBaseEntity, NumberEntity):
 

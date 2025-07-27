@@ -37,7 +37,6 @@ TEMP_STEP = 1
 # Duration for heating/cooling in seconds (2 hours)
 DEFAULT_DURATION = 7200
 
-
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
@@ -57,7 +56,6 @@ async def async_setup_entry(
     ]
 
     async_add_entities(entities)
-
 
 class EightSleepThermostat(EightSleepBaseEntity, ClimateEntity):
     """Representation of an Eight Sleep Thermostat device."""

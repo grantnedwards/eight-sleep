@@ -14,7 +14,6 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from . import EightSleepBaseEntity, EightSleepConfigEntryData
 from .const import DOMAIN
 
-
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
@@ -43,7 +42,7 @@ async def async_setup_entry(
                     routine["id"]))
 
                 alarm_index += 1
-        
+
         description = SwitchEntityDescription(
             key=f"next_alarm",
             name=f"Next Alarm",
@@ -58,7 +57,6 @@ async def async_setup_entry(
             description))
 
     async_add_entities(entities)
-
 
 class EightSwitchEntity(EightSleepBaseEntity, SwitchEntity):
     """Representation of an Eight Sleep switch entity."""

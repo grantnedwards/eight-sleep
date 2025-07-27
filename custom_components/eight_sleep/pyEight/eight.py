@@ -41,7 +41,6 @@ _LOGGER = logging.getLogger(__name__)
 
 CLIENT_TIMEOUT = ClientTimeout(total=DEFAULT_TIMEOUT)
 
-
 class EightSleep:
     """Eight sleep API object."""
 
@@ -362,8 +361,10 @@ class EightSleep:
         data: dict[str, Any] | None = None,
         input_headers=None,
         return_json=True,
+        max_retries: int = 3,
+        base_delay: float = 1.0,
     ) -> Any:
-        """Make api request."""
+        """Make api request with exponential backoff retry logic."""
         if input_headers is not None:
             headers = input_headers
         else:
@@ -371,26 +372,60 @@ class EightSleep:
 
         token = await self.token
         headers.update({"authorization": f"Bearer {token.bearer_token}"})
-        try:
-            assert self._api_session
-            resp = await self._api_session.request(
-                method,
-                url,
-                headers=headers,
-                params=params,
-                json=data,
-                timeout=CLIENT_TIMEOUT,
-                raise_for_status=True,
-            )
-            if resp.status == 401:
-                # refresh token and try again if request in unauthorized
-                await self.refresh_token()
-                return await self.api_request(method, url, params, data, input_headers)
-            if return_json:
-                return await resp.json()
-            else:
-                return None
 
-        except (ClientError, asyncio.TimeoutError, ConnectionRefusedError) as err:
-            _LOGGER.error(f"Error {method}ing Eight data. {err}s")
-            raise RequestError from err
+        for attempt in range(max_retries + 1):
+            try:
+                assert self._api_session
+                resp = await self._api_session.request(
+                    method,
+                    url,
+                    headers=headers,
+                    params=params,
+                    json=data,
+                    timeout=CLIENT_TIMEOUT,
+                    raise_for_status=True,
+                )
+
+                if resp.status == 401:
+                    # refresh token and try again if request is unauthorized
+                    _LOGGER.debug("Token expired, refreshing and retrying")
+                    await self.refresh_token()
+                    token = await self.token
+                    headers.update({"authorization": f"Bearer {token.bearer_token}"})
+                    continue
+
+                if return_json:
+                    return await resp.json()
+                else:
+                    return None
+
+            except (ClientError, asyncio.TimeoutError, ConnectionRefusedError) as err:
+                if attempt == max_retries:
+                    _LOGGER.error(
+                        "Error %sing Eight data after %d attempts: %s",
+                        method,
+                        max_retries + 1,
+                        err,
+                    )
+                    raise RequestError from err
+
+                # Calculate exponential backoff delay
+                delay = base_delay * (2 ** attempt)
+                _LOGGER.warning(
+                    "Error %sing Eight data (attempt %d/%d): %s. Retrying in %.1f seconds...",
+                    method,
+                    attempt + 1,
+                    max_retries + 1,
+                    err,
+                    delay,
+                )
+
+                await asyncio.sleep(delay)
+
+            except Exception as err:
+                _LOGGER.error(
+                    "Unexpected error %sing Eight data: %s",
+                    method,
+                    err,
+                )
+                raise RequestError from err

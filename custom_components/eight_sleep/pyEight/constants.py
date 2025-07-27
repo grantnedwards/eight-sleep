@@ -32,7 +32,6 @@ KNOWN_CLIENT_SECRET = "f0954a3ed5763ba3d06834c73731a32f15f168f47d4f164751275def8
 
 TOKEN_TIME_BUFFER_SECONDS = 120
 
-
 DEFAULT_API_HEADERS = {
     "content-type": "application/json",
     "connection": "keep-alive",
@@ -50,7 +49,6 @@ DEFAULT_AUTH_HEADERS = {
     "accept": "application/json",
 }
 DEFAULT_TIMEOUT = 2400
-
 
 TEMPERATURE_JSON = """{"currentLevel":{level}}"""
 CURRENT_STATE_JSON = """

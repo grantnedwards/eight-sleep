@@ -31,7 +31,6 @@ SNORE_MITIGATION_DESCRIPTION = BinarySensorEntityDescription(
     icon="mdi:account-alert",
 )
 
-
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
@@ -62,7 +61,6 @@ async def async_setup_entry(
             base_entity=True))
 
     async_add_entities(entities)
-
 
 class EightBinaryEntity(EightSleepBaseEntity, BinarySensorEntity):
     """Representation of an Eight Sleep binary entity."""

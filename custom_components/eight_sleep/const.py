@@ -1,9 +1,10 @@
 """Eight Sleep constants."""
 
+from __future__ import annotations
+
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 
 DOMAIN = "eight_sleep"
-
 
 class NameMapEntity:
     def __init__(
@@ -20,7 +21,6 @@ class NameMapEntity:
 
     def __str__(self) -> str:
         return self.name
-
 
 NAME_MAP = {
     "current_sleep_quality_score": NameMapEntity("Sleep Quality Score", "%"),

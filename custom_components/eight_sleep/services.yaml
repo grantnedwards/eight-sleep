@@ -113,3 +113,70 @@ set_bed_side:
               value: left
             - label: Right
               value: right
+health_check:
+  fields:
+    detailed:
+      required: false
+      default: false
+      selector:
+        boolean:
+performance_check:
+  fields:
+    include_cache:
+      required: false
+      default: true
+      selector:
+        boolean:
+    include_connection:
+      required: false
+      default: true
+      selector:
+        boolean:
+clear_cache:
+  fields:
+    confirm:
+      required: false
+      default: false
+      selector:
+        boolean:
+error_report:
+  fields:
+    include_history:
+      required: false
+      default: true
+      selector:
+        boolean:
+    include_diagnostics:
+      required: false
+      default: false
+      selector:
+        boolean:
+error_notification:
+  fields:
+    error_type:
+      required: true
+      selector:
+        text:
+    entity_id:
+      required: false
+      default: ""
+      selector:
+        text:
+    error_details:
+      required: false
+      default: ""
+      selector:
+        text:
+    severity:
+      required: false
+      default: warning
+      selector:
+        select:
+          mode: dropdown
+          options:
+            - label: Info
+              value: info
+            - label: Warning
+              value: warning
+            - label: Error
+              value: error

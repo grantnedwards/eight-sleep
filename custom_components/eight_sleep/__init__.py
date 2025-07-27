@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from datetime import timedelta
 import logging
+from typing import Any
 
 from .pyEight.eight import EightSleep
 from .pyEight.exceptions import RequestError
 from .pyEight.user import EightUser
 import voluptuous as vol
 
-from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_HW_VERSION,
     ATTR_MANUFACTURER,
@@ -37,6 +39,9 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .const import DOMAIN, NAME_MAP
+from . import device_actions
+from .util import create_offline_manager, handle_api_error
+from .error_messages import get_user_friendly_error, create_notification_data, get_error_message, categorize_error
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,9 +54,16 @@ PLATFORMS = [
     Platform.SWITCH,
 ]
 
+# Import sensor modules - these are used by the platform setup
+
 DEVICE_SCAN_INTERVAL = timedelta(seconds=60)
 USER_SCAN_INTERVAL = timedelta(seconds=300)
 BASE_SCAN_INTERVAL = timedelta(seconds=60)
+
+# Retry configuration
+MAX_RETRIES = 3
+BASE_RETRY_DELAY = 1.0
+MAX_RETRY_DELAY = 30.0
 
 CONFIG_SCHEMA = vol.Schema(
     {
@@ -67,7 +79,6 @@ CONFIG_SCHEMA = vol.Schema(
     extra=vol.ALLOW_EXTRA,
 )
 
-
 @dataclass
 class EightSleepConfigEntryData:
     """Data used for all entities for a given config entry."""
@@ -76,7 +87,8 @@ class EightSleepConfigEntryData:
     device_coordinator: DataUpdateCoordinator
     user_coordinator: DataUpdateCoordinator
     base_coordinator: DataUpdateCoordinator
-
+    offline_manager: Any = None
+    device_actions: Any = None
 
 def _get_device_unique_id(
     eight: EightSleep,
@@ -95,23 +107,53 @@ def _get_device_unique_id(
 
     return unique_id
 
+async def _async_retry_with_backoff(
+    func,
+    *args,
+    max_retries: int = MAX_RETRIES,
+    base_delay: float = BASE_RETRY_DELAY,
+    max_delay: float = MAX_RETRY_DELAY,
+    **kwargs
+):
+    """Retry a function with exponential backoff."""
+    last_exception = None
+
+    for attempt in range(max_retries + 1):
+        try:
+            return await func(*args, **kwargs)
+        except (RequestError, ConnectionError, asyncio.TimeoutError) as err:
+            last_exception = err
+
+            if attempt == max_retries:
+                _LOGGER.error(
+                    "Failed after %d attempts: %s",
+                    max_retries + 1,
+                    err,
+                )
+                raise
+
+            # Calculate exponential backoff delay with jitter
+            delay = min(base_delay * (2 ** attempt), max_delay)
+            jitter = delay * 0.1 * (asyncio.get_event_loop().time() % 1)
+            delay += jitter
+
+            _LOGGER.warning(
+                "Attempt %d/%d failed: %s. Retrying in %.1f seconds...",
+                attempt + 1,
+                max_retries + 1,
+                err,
+                delay,
+            )
+
+            await asyncio.sleep(delay)
+
+    # This should never be reached, but just in case
+    raise last_exception
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Old set up method for the Eight Sleep component."""
-    if DOMAIN in config:
-        _LOGGER.warning(
-            "Your Eight Sleep configuration has been imported into the UI; "
-            "please remove it from configuration.yaml as support for it "
-            "will be removed in a future release"
-        )
-        hass.async_create_task(
-            hass.config_entries.flow.async_init(
-                DOMAIN, context={"source": SOURCE_IMPORT}, data=config[DOMAIN]
-            )
-        )
-
+    """Set up the Eight Sleep component."""
+    hass.data.setdefault(DOMAIN, {})
     return True
-
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up the Eight Sleep config entry."""
@@ -123,6 +165,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         client_secret = entry.data[CONF_CLIENT_SECRET]
     else:
         client_secret = None
+
+    # Create offline manager
+    offline_manager = create_offline_manager(hass, entry)
+    await offline_manager.initialize()
+
     eight = EightSleep(
         entry.data[CONF_USERNAME],
         entry.data[CONF_PASSWORD],
@@ -132,42 +179,137 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         client_session=async_get_clientsession(hass),
         httpx_client=get_async_client(hass)
     )
-    # Authenticate, build sensors
+
+    # Authenticate with retry logic
     try:
-        success = await eight.start()
-    except RequestError as err:
+        success = await _async_retry_with_backoff(eight.start)
+        offline_manager.mark_connection_success()
+    except Exception as err:
+        offline_manager.mark_connection_error()
+
+        # Get user-friendly error message
+        error_info = get_user_friendly_error(err, "Eight Sleep API")
+        _LOGGER.error(
+            "%s: %s. %s",
+            error_info["title"],
+            error_info["message"],
+            error_info["suggestion"]
+        )
+
+        # Create notification for user
+        notification_data = create_notification_data(
+            categorize_error(str(err)),
+            entity_id="",
+            error_details=str(err)
+        )
+
+        # Log the notification data for debugging
+        _LOGGER.debug("Error notification data: %s", notification_data)
+
+        await handle_api_error(err, "Eight Sleep API", offline_manager)
         raise ConfigEntryNotReady from err
+
     if not success:
-        # Authentication failed, cannot continue
+        error_info = get_error_message("authentication_failed")
+        _LOGGER.error(
+            "%s: %s. %s",
+            error_info["title"],
+            error_info["message"],
+            error_info["suggestion"]
+        )
         return False
+
+    # Create coordinators with enhanced error handling and offline support
+    async def device_update_method():
+        """Update device data with retry logic and offline support."""
+        try:
+            return await offline_manager.get_data_with_fallback(
+                "device_data",
+                _async_retry_with_backoff,
+                eight.update_device_data
+            )
+        except Exception as err:
+            error_info = get_user_friendly_error(err, "device data")
+            _LOGGER.warning(
+                "%s: %s. %s",
+                error_info["title"],
+                error_info["message"],
+                error_info["suggestion"]
+            )
+            await handle_api_error(err, "device data", offline_manager)
+            raise
+
+    async def user_update_method():
+        """Update user data with retry logic and offline support."""
+        try:
+            return await offline_manager.get_data_with_fallback(
+                "user_data",
+                _async_retry_with_backoff,
+                eight.update_user_data
+            )
+        except Exception as err:
+            error_info = get_user_friendly_error(err, "user data")
+            _LOGGER.warning(
+                "%s: %s. %s",
+                error_info["title"],
+                error_info["message"],
+                error_info["suggestion"]
+            )
+            await handle_api_error(err, "user data", offline_manager)
+            raise
+
+    async def base_update_method():
+        """Update base data with retry logic and offline support."""
+        try:
+            return await offline_manager.get_data_with_fallback(
+                "base_data",
+                _async_retry_with_backoff,
+                eight.update_base_data
+            )
+        except Exception as err:
+            error_info = get_user_friendly_error(err, "base data")
+            _LOGGER.warning(
+                "%s: %s. %s",
+                error_info["title"],
+                error_info["message"],
+                error_info["suggestion"]
+            )
+            await handle_api_error(err, "base data", offline_manager)
+            raise
 
     device_coordinator: DataUpdateCoordinator = DataUpdateCoordinator(
         hass,
         _LOGGER,
         name=f"{DOMAIN}_device",
         update_interval=DEVICE_SCAN_INTERVAL,
-        update_method=eight.update_device_data,
+        update_method=device_update_method,
     )
     user_coordinator: DataUpdateCoordinator = DataUpdateCoordinator(
         hass,
         _LOGGER,
         name=f"{DOMAIN}_user",
         update_interval=USER_SCAN_INTERVAL,
-        update_method=eight.update_user_data,
+        update_method=user_update_method,
     )
     base_coordinator: DataUpdateCoordinator = DataUpdateCoordinator(
         hass,
         _LOGGER,
         name=f"{DOMAIN}_base",
         update_interval=BASE_SCAN_INTERVAL,
-        update_method=eight.update_base_data,
+        update_method=base_update_method,
     )
-    await device_coordinator.async_config_entry_first_refresh()
-    await user_coordinator.async_config_entry_first_refresh()
-    await base_coordinator.async_config_entry_first_refresh()
+
+    # Initialize coordinators with retry logic
+    try:
+        await _async_retry_with_backoff(device_coordinator.async_config_entry_first_refresh)
+        await _async_retry_with_backoff(user_coordinator.async_config_entry_first_refresh)
+        await _async_retry_with_backoff(base_coordinator.async_config_entry_first_refresh)
+    except Exception as err:
+        _LOGGER.error("Failed to initialize coordinators: %s", err)
+        raise ConfigEntryNotReady from err
 
     if not eight.users:
-        # No users, cannot continue
+        _LOGGER.error("No users found for Eight Sleep device")
         return False
 
     dev_reg = async_get(hass)
@@ -214,14 +356,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             **base_device_data,
         )
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = EightSleepConfigEntryData(
-        eight, device_coordinator, user_coordinator, base_coordinator
+    hass.data[DOMAIN][entry.entry_id] = EightSleepConfigEntryData(
+        eight, device_coordinator, user_coordinator, base_coordinator, offline_manager
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    return True
+    # Register device actions
+    hass.data[DOMAIN][entry.entry_id].device_actions = device_actions
 
+    # Set up health check and error reporting services
+    from .health_check import async_setup_health_services
+    from .error_reporting import async_setup_error_reporting_services
+
+    await async_setup_health_services(hass, entry)
+    await async_setup_error_reporting_services(hass, entry)
+
+    return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
@@ -235,7 +386,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     return unload_ok
 
-
 class EightSleepBaseEntity(CoordinatorEntity[DataUpdateCoordinator]):
     """The base Eight Sleep entity class."""
 
@@ -247,96 +397,118 @@ class EightSleepBaseEntity(CoordinatorEntity[DataUpdateCoordinator]):
         coordinator: DataUpdateCoordinator,
         eight: EightSleep,
         user: EightUser | None,
-        sensor: str,
+        sensor_name: str,
         base_entity: bool = False
     ) -> None:
         """Initialize the data object."""
         super().__init__(coordinator)
         self._config_entry = entry
         self._eight = eight
-        self._sensor = sensor
+        self._sensor = sensor_name
         self._user_obj = user
 
-        self._attr_name = str(NAME_MAP.get(sensor, sensor.replace("_", " ").title()))
+        self._attr_name = str(NAME_MAP.get(sensor_name, sensor_name.replace("_", " ").title()))
 
         device_id = _get_device_unique_id(eight, self._user_obj, base_entity)
-        self._attr_unique_id = f"{device_id}.{sensor}"
+        self._attr_unique_id = f"{device_id}.{sensor_name}"
         self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, device_id)})
 
     async def _generic_service_call(self, service_method):
+        """Generic service call with retry logic."""
         if self._user_obj is None:
+            error_info = get_error_message("device_not_found")
             raise HomeAssistantError(
-                "This entity does not support the service call. Ensure you have a target <xxx>_bed_temperature entity set as the target."
+                f"{error_info['title']}: {error_info['message']}. {error_info['suggestion']}"
             )
-        await service_method()
-        config_entry_data: EightSleepConfigEntryData = self.hass.data[DOMAIN][
-            self._config_entry.entry_id
-        ]
-        await config_entry_data.device_coordinator.async_request_refresh()
+
+        try:
+            return await _async_retry_with_backoff(service_method)
+        except Exception as err:
+            error_info = get_user_friendly_error(err, self._attr_unique_id)
+            _LOGGER.error(
+                "Service call failed for %s: %s. %s",
+                self._attr_unique_id,
+                error_info["message"],
+                error_info["suggestion"]
+            )
+            raise HomeAssistantError(
+                f"{error_info['title']}: {error_info['message']}. {error_info['suggestion']}"
+            ) from err
 
     async def async_heat_set(
         self, target: int, duration: int, sleep_stage: str
     ) -> None:
-        """Handle eight sleep heat set calls."""
-        if sleep_stage == "current":
-            await self._generic_service_call(
-                lambda: self._user_obj.set_heating_level(target, duration)
-            )
-        else:
-            await self._generic_service_call(
-                lambda: self._user_obj.set_smart_heating_level(target, sleep_stage)
-            )
+        """Set the bed temperature."""
+        await self._generic_service_call(
+            lambda: self._user_obj.heat_set(target, duration, sleep_stage)
+        )
 
     async def async_heat_increment(self, target: int) -> None:
-        """Handle eight sleep heat increment calls."""
+        """Increment the bed temperature."""
         await self._generic_service_call(
-            lambda: self._user_obj.increment_heating_level(target)
+            lambda: self._user_obj.heat_increment(target)
         )
 
     async def async_side_off(
         self,
     ) -> None:
-        """Handle eight sleep side off calls."""
-        await self._generic_service_call(self._user_obj.turn_off_side)
+        """Turn off the bed side."""
+        await self._generic_service_call(
+            lambda: self._user_obj.side_off()
+        )
 
     async def async_side_on(
         self,
     ) -> None:
-        """Handle eight sleep side on calls."""
-        await self._generic_service_call(self._user_obj.turn_on_side)
+        """Turn on the bed side."""
+        await self._generic_service_call(
+            lambda: self._user_obj.side_on()
+        )
 
     async def async_alarm_snooze(self, duration: int) -> None:
-        """Handle eight sleep alarm snooze calls."""
-        await self._generic_service_call(lambda: self._user_obj.alarm_snooze(duration))
+        """Snooze the alarm."""
+        await self._generic_service_call(
+            lambda: self._user_obj.alarm_snooze(duration)
+        )
 
     async def async_alarm_stop(self) -> None:
-        """Handle eight sleep alarm stop calls."""
-        await self._generic_service_call(self._user_obj.alarm_stop)
+        """Stop the alarm."""
+        await self._generic_service_call(
+            lambda: self._user_obj.alarm_stop()
+        )
 
     async def async_alarm_dismiss(self) -> None:
-        """Handle eight sleep alarm dismiss calls."""
-        await self._generic_service_call(self._user_obj.alarm_dismiss)
+        """Dismiss the alarm."""
+        await self._generic_service_call(
+            lambda: self._user_obj.alarm_dismiss()
+        )
 
     async def async_start_away_mode(
         self,
     ) -> None:
-        """Handle eight sleep start away mode calls."""
-        await self._generic_service_call(lambda: self._user_obj.set_away_mode("start"))
+        """Start away mode."""
+        await self._generic_service_call(
+            lambda: self._user_obj.start_away_mode()
+        )
 
     async def async_stop_away_mode(
         self,
     ) -> None:
-        """Handle eight sleep start away mode calls."""
-        await self._generic_service_call(lambda: self._user_obj.set_away_mode("end"))
+        """Stop away mode."""
+        await self._generic_service_call(
+            lambda: self._user_obj.stop_away_mode()
+        )
 
     async def async_prime_pod(
         self,
     ) -> None:
-        """Handle eight sleep prime pod calls."""
-        await self._generic_service_call(self._user_obj.prime_pod)
+        """Prime the pod."""
+        await self._generic_service_call(
+            lambda: self._user_obj.prime_pod()
+        )
 
     async def async_set_bed_side(self, bed_side_state: str) -> None:
-        """Handle eight sleep set bide side state."""
+        """Set the bed side state."""
         await self._generic_service_call(
             lambda: self._user_obj.set_bed_side(bed_side_state)
         )

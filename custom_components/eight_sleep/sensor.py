@@ -120,7 +120,6 @@ SERVICE_ALARM_SNOOZE_SCHEMA = {
     ATTR_DURATION: VALID_SNOOZE_DURATION,
 }
 
-
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
@@ -209,7 +208,6 @@ async def async_setup_entry(
         "async_set_bed_side",
     )
 
-
 class EightHeatSensor(EightSleepBaseEntity, SensorEntity):
     """Representation of an eight sleep heat-based sensor."""
 
@@ -249,7 +247,6 @@ class EightHeatSensor(EightSleepBaseEntity, SensorEntity):
             ATTR_DURATION_HEAT: self._user_obj.heating_remaining,
         }
 
-
 def _get_breakdown_percent(
     attr: dict[str, Any], key: str, denominator: int | float
 ) -> int | float:
@@ -259,13 +256,11 @@ def _get_breakdown_percent(
     except (ZeroDivisionError, KeyError):
         return 0
 
-
 def _get_rounded_value(attr: dict[str, Any], key: str) -> int | float | None:
     """Get rounded value for given key."""
     if (val := attr.get(key)) is None:
         return None
     return round(val, 2)
-
 
 class EightUserSensor(EightSleepBaseEntity, SensorEntity):
     """Representation of an eight sleep user-based sensor."""
@@ -392,7 +387,6 @@ class EightUserSensor(EightSleepBaseEntity, SensorEntity):
             state_attr[ATTR_AVG_BED_TEMP] = bed_temp
 
         return state_attr
-
 
 class EightRoomSensor(EightSleepBaseEntity, SensorEntity):
     """Representation of an eight sleep room sensor."""

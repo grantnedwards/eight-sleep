@@ -9,6 +9,9 @@
     "issue_tracker": "https://github.com/lukas-clarke/eight_sleep/issues",
     "loggers": ["pyEight"],
     "requirements": ["httpx", "aiohttp"],
-    "version": "1.0.20"
-
+    "version": "1.0.20",
+    "frontend": {
+        "js_type": "module",
+        "js_url": "/hacsfiles/eight_sleep/frontend/panel.js"
+    }
 }
