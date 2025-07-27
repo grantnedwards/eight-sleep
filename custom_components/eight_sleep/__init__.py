@@ -157,6 +157,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up the Eight Sleep config entry."""
+    _LOGGER.info("Starting Eight Sleep integration setup for entry: %s", entry.entry_id)
+    
     if CONF_CLIENT_ID in entry.data:
         client_id = entry.data[CONF_CLIENT_ID]
     else:
@@ -167,9 +169,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         client_secret = None
 
     # Create offline manager
+    _LOGGER.info("Creating offline manager")
     offline_manager = create_offline_manager(hass, entry)
     await offline_manager.initialize()
 
+    _LOGGER.info("Creating EightSleep API client")
     eight = EightSleep(
         entry.data[CONF_USERNAME],
         entry.data[CONF_PASSWORD],
@@ -181,11 +185,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     # Authenticate with retry logic
+    _LOGGER.info("Authenticating with Eight Sleep API")
     try:
         success = await _async_retry_with_backoff(eight.start)
         offline_manager.mark_connection_success()
+        _LOGGER.info("Authentication successful")
     except Exception as err:
         offline_manager.mark_connection_error()
+        _LOGGER.error("Authentication failed: %s", err)
 
         # Get user-friendly error message
         error_info = get_user_friendly_error(err, "Eight Sleep API")
@@ -223,6 +230,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
 
+    _LOGGER.info("Creating coordinators")
     # Create coordinators with enhanced error handling and offline support
     async def device_update_method():
         """Update device data with retry logic and offline support."""
@@ -364,17 +372,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         eight, device_coordinator, user_coordinator, base_coordinator, offline_manager
     )
 
+    _LOGGER.info("Setting up platforms: %s", PLATFORMS)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    _LOGGER.info("Platforms setup complete")
 
     # Register device actions
+    _LOGGER.info("Registering device actions")
     hass.data[DOMAIN][entry.entry_id].device_actions = device_actions
 
     # Set up health check and error reporting services
+    _LOGGER.info("Setting up health check and error reporting services")
     from .health_check import async_setup_health_services
     from .error_reporting import async_setup_error_reporting_services
 
     await async_setup_health_services(hass, entry)
     await async_setup_error_reporting_services(hass, entry)
+    _LOGGER.info("Eight Sleep integration setup complete")
 
     return True
 
