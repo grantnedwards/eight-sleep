@@ -1,4 +1,5 @@
 from __future__ import annotations
+import logging
 from typing import Any, Awaitable, Callable
 
 from .pyEight.user import EightUser
@@ -13,6 +14,8 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from . import EightSleepBaseEntity, EightSleepConfigEntryData
 from .const import DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
@@ -80,7 +83,12 @@ class EightSwitchEntity(EightSleepBaseEntity, SwitchEntity):
 
     def _update_attributes(self) -> None:
         if self._user_obj:
-            self._attr_is_on = self._user_obj.get_alarm_enabled(self._alarm_id)
+            try:
+                self._attr_is_on = self._user_obj.get_alarm_enabled(self._alarm_id)
+            except Exception as e:
+                _LOGGER.warning("Alarm not found, disabling switch: %s", e)
+                self._attr_is_on = False
+                return
 
             alarm_id = self._alarm_id or self._user_obj.next_alarm_id
             if alarm_id:
@@ -109,13 +117,19 @@ class EightSwitchEntity(EightSleepBaseEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         if self._user_obj:
-            await self._user_obj.set_alarm_enabled(self._routine_id, self._alarm_id, True)
-            await self.coordinator.async_request_refresh()
+            try:
+                await self._user_obj.set_alarm_enabled(self._routine_id, self._alarm_id, True)
+                await self.coordinator.async_request_refresh()
+            except Exception as e:
+                _LOGGER.error("Failed to turn on alarm: %s", e)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         if self._user_obj:
-            await self._user_obj.set_alarm_enabled(self._routine_id, self._alarm_id, False)
-            await self.coordinator.async_request_refresh()
+            try:
+                await self._user_obj.set_alarm_enabled(self._routine_id, self._alarm_id, False)
+                await self.coordinator.async_request_refresh()
+            except Exception as e:
+                _LOGGER.error("Failed to turn off alarm: %s", e)
 
     @callback
     def _handle_coordinator_update(self) -> None:
