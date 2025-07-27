@@ -228,6 +228,7 @@ class EightSleepOfflineManager:
     def __init__(self, hass: HomeAssistant, username: str):
         """Initialize the offline manager."""
         self.hass = hass
+        self.username = username
         self.cache = EightSleepCache(hass, username)
         self.connection_status = ConnectionStatus()
         self._recovery_attempts = 0
