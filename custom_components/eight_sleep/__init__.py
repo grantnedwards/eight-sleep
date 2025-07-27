@@ -356,6 +356,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             **base_device_data,
         )
 
+    # Initialize hass.data[DOMAIN] if it doesn't exist
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = {}
+
     hass.data[DOMAIN][entry.entry_id] = EightSleepConfigEntryData(
         eight, device_coordinator, user_coordinator, base_coordinator, offline_manager
     )
