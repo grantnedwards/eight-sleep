@@ -46,6 +46,21 @@ from .const import (
     NAME_MAP,
 )
 
+# Import all the new sensor modules
+from . import (
+    sleep_stage_sensor,
+    environmental_sensor,
+    heart_rate_variability_sensor,
+    device_health_sensor,
+    respiratory_rate_sensor,
+    historical_sensor,
+    biometric_trends_sensor,
+    sleep_duration_sensor,
+    sleep_quality_sensor,
+    sleep_efficiency_sensor,
+    connection_status_sensor,
+)
+
 ATTR_ROOM_TEMP = "Room Temperature"
 ATTR_AVG_ROOM_TEMP = "Average Room Temperature"
 ATTR_BED_TEMP = "Bed Temperature"
@@ -207,6 +222,19 @@ async def async_setup_entry(
         },
         "async_set_bed_side",
     )
+
+    # Set up all the new sensor modules
+    await sleep_stage_sensor.async_setup_entry(hass, entry, async_add_entities)
+    await environmental_sensor.async_setup_entry(hass, entry, async_add_entities)
+    await heart_rate_variability_sensor.async_setup_entry(hass, entry, async_add_entities)
+    await device_health_sensor.async_setup_entry(hass, entry, async_add_entities)
+    await respiratory_rate_sensor.async_setup_entry(hass, entry, async_add_entities)
+    await historical_sensor.async_setup_entry(hass, entry, async_add_entities)
+    await biometric_trends_sensor.async_setup_entry(hass, entry, async_add_entities)
+    await sleep_duration_sensor.async_setup_entry(hass, entry, async_add_entities)
+    await sleep_quality_sensor.async_setup_entry(hass, entry, async_add_entities)
+    await sleep_efficiency_sensor.async_setup_entry(hass, entry, async_add_entities)
+    await connection_status_sensor.async_setup_entry(hass, entry, async_add_entities)
 
 class EightHeatSensor(EightSleepBaseEntity, SensorEntity):
     """Representation of an eight sleep heat-based sensor."""
