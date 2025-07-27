@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from custom_components.eight_sleep.pyEight.user import EightUser
+from .pyEight.user import EightUser
 
 from .pyEight.eight import EightSleep
 import voluptuous as vol

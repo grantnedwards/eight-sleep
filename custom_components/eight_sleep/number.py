@@ -5,10 +5,10 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from custom_components.eight_sleep import EightSleepBaseEntity, EightSleepConfigEntryData
-from custom_components.eight_sleep.const import DOMAIN
-from custom_components.eight_sleep.pyEight.eight import EightSleep
-from custom_components.eight_sleep.pyEight.user import EightUser
+from . import EightSleepBaseEntity, EightSleepConfigEntryData
+from .const import DOMAIN
+from .pyEight.eight import EightSleep
+from .pyEight.user import EightUser
 
 FEET_DESCRIPTION = NumberEntityDescription(
     key="feet_angle",

@@ -2,7 +2,7 @@
 from __future__ import annotations
 from typing import Callable
 
-from custom_components.eight_sleep.pyEight.user import EightUser
+from .pyEight.user import EightUser
 
 from .pyEight.eight import EightSleep
 
