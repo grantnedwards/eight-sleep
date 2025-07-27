@@ -2,6 +2,21 @@
 
 A comprehensive Home Assistant integration for Eight Sleep smart mattresses and mattress covers, featuring a beautiful custom Lovelace card, device actions, enhanced error handling, and real-time sleep stage tracking.
 
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
+[![maintainer](https://img.shields.io/badge/maintainer-%40grantnedwards-blue.svg)](https://github.com/grantnedwards)
+[![license](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
+
+## 📋 Description
+
+This integration provides comprehensive control and monitoring for Eight Sleep smart mattresses and mattress covers. It includes real-time temperature control, sleep stage tracking, biometric monitoring, and a beautiful custom Lovelace card for easy bed management.
+
+**Key Features:**
+- 🎛️ Real-time temperature control with custom Lovelace card
+- 📊 Comprehensive sleep stage and biometric monitoring  
+- 🔧 Device actions for automation integration
+- 🛡️ Enhanced error handling with offline support
+- 📱 Responsive design for mobile and desktop
+
 ## ✨ Features
 
 ### 🎛️ Custom Lovelace Card

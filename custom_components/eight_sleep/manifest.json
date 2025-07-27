@@ -1,17 +1,13 @@
 {
     "domain": "eight_sleep",
     "name": "Eight Sleep",
-    "codeowners": ["@lukas-clarke"],
+    "codeowners": ["@grantnedwards"],
     "config_flow": true,
-    "documentation": "https://github.com/lukas-clarke/eight_sleep",
+    "documentation": "https://github.com/grantnedwards/eight-sleep",
     "integration_type": "hub",
     "iot_class": "cloud_polling",
-    "issue_tracker": "https://github.com/lukas-clarke/eight_sleep/issues",
+    "issue_tracker": "https://github.com/grantnedwards/eight-sleep/issues",
     "loggers": ["pyEight"],
     "requirements": ["httpx", "aiohttp"],
-    "version": "1.0.20",
-    "frontend": {
-        "js_type": "module",
-        "js_url": "/hacsfiles/eight_sleep/frontend/panel.js"
-    }
+    "version": "1.0.20"
 }
