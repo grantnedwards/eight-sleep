@@ -1,0 +1,37 @@
+Enhanced Eight Sleep API Exploration Summary
+============================================================
+
+Total Entities Discovered: 633
+Total Endpoints Explored: 8
+Unique URLs Explored: 7
+Device Type: Pod 4
+Has Base: False
+
+Entities by Type:
+  general: 371 entities
+  time: 76 entities
+  temperature: 28 entities
+  analytics: 6 entities
+  sleep: 30 entities
+  device: 36 entities
+  alarm: 17 entities
+  notification: 3 entities
+  settings: 6 entities
+  status: 24 entities
+  health: 19 entities
+  score: 17 entities
+
+Recommended Home Assistant Entities:
+  sensors: 354 entities
+  binary_sensors: 109 entities
+  numbers: 12 entities
+
+Explored Endpoints:
+  GET https://client-api.8slp.net/v1/users/me
+  GET https://client-api.8slp.net/v1/devices/6833ad86147e8fa8e969a856c64052dbc52791c2
+  GET https://client-api.8slp.net/v1/devices/6833ad86147e8fa8e969a856c64052dbc52791c2?filter=leftUserId,rightUserId,awaySides
+  GET https://client-api.8slp.net/v1/users/5611f26f969e457f8cde8e8b6e5a6dc6
+  GET https://client-api.8slp.net/v1/users/5611f26f969e457f8cde8e8b6e5a6dc6/trends
+  GET https://app-api.8slp.net/v2/users/5611f26f969e457f8cde8e8b6e5a6dc6/routines
+  GET https://app-api.8slp.net/v1/users/5611f26f969e457f8cde8e8b6e5a6dc6/temperature
+  GET https://client-api.8slp.net/v1/users/5611f26f969e457f8cde8e8b6e5a6dc6

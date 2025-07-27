@@ -59,6 +59,11 @@ from . import (
     sleep_quality_sensor,
     sleep_efficiency_sensor,
     connection_status_sensor,
+    health_metrics_sensor,
+    sleep_analytics_sensor,
+    device_monitoring_sensor,
+    presence_detection_sensor,
+    alarm_management_sensor,
 )
 
 ATTR_ROOM_TEMP = "Room Temperature"
@@ -230,6 +235,16 @@ async def async_setup_entry(
     await device_health_sensor.async_setup_entry(hass, entry, async_add_entities)
     await respiratory_rate_sensor.async_setup_entry(hass, entry, async_add_entities)
     await historical_sensor.async_setup_entry(hass, entry, async_add_entities)
+    await biometric_trends_sensor.async_setup_entry(hass, entry, async_add_entities)
+    await sleep_duration_sensor.async_setup_entry(hass, entry, async_add_entities)
+    await sleep_quality_sensor.async_setup_entry(hass, entry, async_add_entities)
+    await sleep_efficiency_sensor.async_setup_entry(hass, entry, async_add_entities)
+    await connection_status_sensor.async_setup_entry(hass, entry, async_add_entities)
+    await health_metrics_sensor.async_setup_entry(hass, entry, async_add_entities)
+    await sleep_analytics_sensor.async_setup_entry(hass, entry, async_add_entities)
+    await device_monitoring_sensor.async_setup_entry(hass, entry, async_add_entities)
+    await presence_detection_sensor.async_setup_entry(hass, entry, async_add_entities)
+    await alarm_management_sensor.async_setup_entry(hass, entry, async_add_entities)
     await biometric_trends_sensor.async_setup_entry(hass, entry, async_add_entities)
     await sleep_duration_sensor.async_setup_entry(hass, entry, async_add_entities)
     await sleep_quality_sensor.async_setup_entry(hass, entry, async_add_entities)
